@@ -1928,10 +1928,12 @@ function Ct({ onScan: t, onClose: r }) {
     C = i.useCallback(async () => {
       (s(!0), h(""));
       try {
-        const f = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: "environment" },
-          audio: !1,
-        });
+        let f;
+        try {
+          f = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" }, audio: false });
+        } catch(err1) {
+          f = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+        }
         ((x.current = f),
           m.current && ((m.current.srcObject = f), await m.current.play()),
           s(!1),

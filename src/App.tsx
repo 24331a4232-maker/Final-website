@@ -88,9 +88,25 @@ export default function App() {
     };
     window.addEventListener('foodbridge_donation_created', handleDonationCreated);
 
+    // 3. Listen for accept donation events from notification alerts
+    const handleAcceptAlert = (e: Event) => {
+      const alert = (e as CustomEvent).detail as DonationAlert;
+      if (alert) {
+        setCelebrationDetails({
+          food_title: alert.foodName || alert.title || 'Surplus Food Donation',
+          quantity: alert.quantity || '1 package',
+          pickup_address: alert.city || 'Community Donor Location',
+          food_type: 'Accepted Pickup',
+        });
+        setShowCelebration(true);
+      }
+    };
+    window.addEventListener('foodbridge_accept_donation_from_alert', handleAcceptAlert);
+
     return () => {
       unsubscribe();
       window.removeEventListener('foodbridge_donation_created', handleDonationCreated);
+      window.removeEventListener('foodbridge_accept_donation_from_alert', handleAcceptAlert);
     };
   }, []);
 
@@ -339,7 +355,7 @@ export default function App() {
                         {alert.description}
                       </p>
                       {alert.city && (
-                        <div className="mt-2 flex items-center gap-2 text-[10px] text-stone-500">
+                        <div className="mt-2 flex items-center justify-between gap-2 text-[10px] text-stone-500">
                           <span className="inline-flex items-center gap-1">
                             <MapPin className="h-3 w-3" /> {alert.city}
                           </span>
@@ -348,6 +364,22 @@ export default function App() {
                           )}
                         </div>
                       )}
+                      
+                      <div className="mt-3 flex items-center gap-2">
+                        <button
+                          onClick={() => {
+                            try {
+                              window.dispatchEvent(new CustomEvent('foodbridge_accept_donation_from_alert', { detail: alert }));
+                            } catch (e) {}
+                            setShowNotificationsModal(false);
+                            window.location.href = '/dashboard/volunteer';
+                          }}
+                          className="flex items-center gap-1.5 rounded-xl bg-emerald-600 px-3 py-1.5 text-xs font-bold text-white shadow hover:bg-emerald-700 transition"
+                        >
+                          <CheckCircle className="h-3.5 w-3.5" />
+                          <span>Accept Donation</span>
+                        </button>
+                      </div>
                     </div>
                   </div>
                 ))

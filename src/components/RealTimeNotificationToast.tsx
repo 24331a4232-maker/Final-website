@@ -45,7 +45,22 @@ export const RealTimeNotificationToast: React.FC<RealTimeNotificationToastProps>
               {alert.description}
             </p>
 
-            <div className="mt-3 flex items-center gap-2">
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              <button
+                onClick={() => {
+                  try {
+                    const event = new CustomEvent('foodbridge_accept_donation_from_alert', { detail: alert });
+                    window.dispatchEvent(event);
+                  } catch (e) {}
+                  onDismiss();
+                  window.location.href = '/dashboard/volunteer';
+                }}
+                className="flex items-center gap-1.5 rounded-xl bg-amber-500 px-3 py-1.5 text-xs font-bold text-stone-900 shadow-md hover:bg-amber-400 transition"
+              >
+                <Check className="h-3.5 w-3.5 stroke-[3]" />
+                <span>Accept Donation</span>
+              </button>
+
               <button
                 onClick={() => {
                   onDismiss();
@@ -58,7 +73,7 @@ export const RealTimeNotificationToast: React.FC<RealTimeNotificationToastProps>
                 }}
                 className="flex items-center gap-1.5 rounded-xl bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white shadow hover:bg-emerald-700 transition"
               >
-                <span>{isVolunteerTarget ? 'View Available Food' : 'Open Notifications'}</span>
+                <span>{isVolunteerTarget ? 'View All Food' : 'Open Notifications'}</span>
                 <ArrowRight className="h-3 w-3" />
               </button>
 
