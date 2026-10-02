@@ -10,11 +10,14 @@ import {
   Bell, 
   Radio, 
   ArrowRight,
-  ExternalLink 
+  ExternalLink,
+  Mail
 } from 'lucide-react';
 import { GoogleMapComponent, FoodPickupLocation } from './components/GoogleMapComponent';
 import { CalendarSyncModal } from './components/CalendarSyncModal';
 import { RealTimeNotificationToast } from './components/RealTimeNotificationToast';
+import { CelebrationOverlay, DonationDetail } from './components/CelebrationOverlay';
+import { GmailComposeModal } from './components/GmailComposeModal';
 import { 
   listenToDonationSnapshots, 
   DonationAlert, 
@@ -25,7 +28,10 @@ import {
 export default function App() {
   const [showMapModal, setShowMapModal] = useState(false);
   const [showCalendarModal, setShowCalendarModal] = useState(false);
+  const [showGmailModal, setShowGmailModal] = useState(false);
   const [showNotificationsModal, setShowNotificationsModal] = useState(false);
+  const [showCelebration, setShowCelebration] = useState(false);
+  const [celebrationDetails, setCelebrationDetails] = useState<DonationDetail | null>(null);
   const [selectedPickupForCalendar, setSelectedPickupForCalendar] = useState<FoodPickupLocation | null>(null);
   const [isMinimized, setIsMinimized] = useState(false);
   const [latestAlert, setLatestAlert] = useState<DonationAlert | null>(null);
@@ -64,11 +70,20 @@ export default function App() {
       }
     );
 
-    // 2. Listen for newly submitted food donations from the frontend form to sync to Firestore
+    // 2. Listen for newly submitted food donations from the frontend form to sync to Firestore and trigger celebration
     const handleDonationCreated = (e: Event) => {
       const customEvent = e as CustomEvent;
       if (customEvent.detail) {
         pushDonationToFirestore(customEvent.detail);
+
+        const d = customEvent.detail;
+        setCelebrationDetails({
+          food_title: d.food_name || d.food_title || d.title || 'Fresh Surplus Meal Package',
+          quantity: `${d.quantity || '50'} ${d.quantity_unit || 'servings'}`.trim(),
+          pickup_address: d.pickup_address || d.address || d.city || 'Central Community Kitchen',
+          food_type: d.food_type || d.category || 'Fresh Prepared Food',
+        });
+        setShowCelebration(true);
       }
     };
     window.addEventListener('foodbridge_donation_created', handleDonationCreated);
@@ -197,6 +212,52 @@ export default function App() {
                 </div>
                 <span className="rounded-full bg-blue-200/60 px-2 py-0.5 text-[10px] font-bold text-blue-800 dark:bg-blue-900 dark:text-blue-200">
                   OAuth Active
+                </span>
+              </button>
+
+              {/* Google Gmail Dispatch Trigger */}
+              <button
+                onClick={() => setShowGmailModal(true)}
+                className="flex w-full items-center justify-between rounded-xl border border-rose-100 bg-rose-50/70 p-2.5 font-medium text-rose-950 transition hover:bg-rose-100 dark:border-rose-900/40 dark:bg-rose-950/40 dark:text-rose-200"
+              >
+                <div className="flex items-center gap-2">
+                  <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-rose-600 text-white">
+                    <Mail className="h-4 w-4" />
+                  </div>
+                  <div className="text-left">
+                    <p className="font-semibold text-xs leading-none">Google Gmail API</p>
+                    <p className="mt-0.5 text-[10px] text-rose-700 dark:text-rose-300">Dispatch Logistics Emails</p>
+                  </div>
+                </div>
+                <span className="rounded-full bg-rose-200/80 px-2 py-0.5 text-[10px] font-bold text-rose-900 dark:bg-rose-900 dark:text-rose-100">
+                  OAuth Ready
+                </span>
+              </button>
+
+              {/* Preview Celebration Effect Trigger */}
+              <button
+                onClick={() => {
+                  setCelebrationDetails({
+                    food_title: 'Surplus Fresh Hotel Catering',
+                    quantity: '80 meals',
+                    pickup_address: 'Grand Central Plaza, Floor 2',
+                    food_type: 'Fresh Cooked Buffer Meals',
+                  });
+                  setShowCelebration(true);
+                }}
+                className="flex w-full items-center justify-between rounded-xl border border-teal-200 bg-teal-50/70 p-2.5 font-medium text-teal-950 transition hover:bg-teal-100 dark:border-teal-800/40 dark:bg-teal-950/40 dark:text-teal-200"
+              >
+                <div className="flex items-center gap-2">
+                  <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-teal-600 text-white">
+                    <Sparkles className="h-4 w-4 animate-spin" />
+                  </div>
+                  <div className="text-left">
+                    <p className="font-semibold text-xs leading-none">Celebration Overlay</p>
+                    <p className="mt-0.5 text-[10px] text-teal-700 dark:text-teal-300">Confetti & Fanfare Preview</p>
+                  </div>
+                </div>
+                <span className="rounded-full bg-teal-200/80 px-2 py-0.5 text-[10px] font-bold text-teal-900 dark:bg-teal-900 dark:text-teal-100">
+                  Try 🎉
                 </span>
               </button>
 
@@ -360,6 +421,19 @@ export default function App() {
           setSelectedPickupForCalendar(null);
         }}
         presetPickup={selectedPickupForCalendar}
+      />
+
+      {/* Google Workspace Gmail Dispatch Modal */}
+      <GmailComposeModal
+        isOpen={showGmailModal}
+        onClose={() => setShowGmailModal(false)}
+      />
+
+      {/* Celebratory Confetti & Impact Overlay */}
+      <CelebrationOverlay
+        show={showCelebration}
+        donationDetails={celebrationDetails}
+        onClose={() => setShowCelebration(false)}
       />
     </>
   );

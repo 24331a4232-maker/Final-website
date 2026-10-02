@@ -28,11 +28,15 @@ try {
 export const db = firestoreInstance;
 export const auth = getAuth(app);
 
-// Google Auth Provider with Calendar scopes
+// Google Auth Provider with Calendar & Gmail scopes
 export const googleAuthProvider = new GoogleAuthProvider();
 googleAuthProvider.addScope('https://www.googleapis.com/auth/calendar');
 googleAuthProvider.addScope('https://www.googleapis.com/auth/calendar.events');
 googleAuthProvider.addScope('https://www.googleapis.com/auth/calendar.readonly');
+googleAuthProvider.addScope('https://www.googleapis.com/auth/gmail.send');
+googleAuthProvider.addScope('https://www.googleapis.com/auth/gmail.compose');
+googleAuthProvider.addScope('https://www.googleapis.com/auth/gmail.readonly');
+googleAuthProvider.addScope('https://www.googleapis.com/auth/gmail.modify');
 
 export enum OperationType {
   CREATE = 'create',
