@@ -201,3 +201,152 @@ export async function pushDonationToFirestore(donation: {
     console.warn('Could not push donation notification to Firestore:', error);
   }
 }
+
+export interface LiveLocationRecord {
+  userId: string;
+  name: string;
+  role: 'donor' | 'volunteer' | 'admin';
+  organization?: string;
+  lat: number;
+  lng: number;
+  address?: string;
+  status: 'active' | 'in_transit' | 'ready' | 'idle';
+  updatedAt: string;
+}
+
+/**
+ * Shares user live location (Donor or Volunteer) to Firestore and local store
+ */
+export async function shareUserLiveLocation(record: {
+  userId?: string;
+  name?: string;
+  role: 'donor' | 'volunteer' | 'admin';
+  organization?: string;
+  lat: number;
+  lng: number;
+  address?: string;
+  status?: 'active' | 'in_transit' | 'ready' | 'idle';
+}): Promise<void> {
+  const userId = record.userId || `user-${record.role}-${Date.now()}`;
+  const name = record.name || (record.role === 'donor' ? 'Food Donor' : 'Volunteer Courier');
+  const nowStr = new Date().toISOString();
+
+  const locItem: LiveLocationRecord = {
+    userId,
+    name,
+    role: record.role,
+    organization: record.organization || '',
+    lat: record.lat,
+    lng: record.lng,
+    address: record.address || '',
+    status: record.status || 'active',
+    updatedAt: nowStr,
+  };
+
+  // 1. Update localStorage cache
+  try {
+    const raw = localStorage.getItem('foodbridge_live_locations');
+    const list: LiveLocationRecord[] = raw ? JSON.parse(raw) : [];
+    const idx = list.findIndex((x) => x.userId === userId);
+    if (idx >= 0) {
+      list[idx] = locItem;
+    } else {
+      list.push(locItem);
+    }
+    localStorage.setItem('foodbridge_live_locations', JSON.stringify(list));
+
+    // Also update profile coordinates in storage if available
+    const curSess = localStorage.getItem('foodbridge_current_session');
+    if (curSess) {
+      const parsed = JSON.parse(curSess);
+      if (parsed.profile) {
+        parsed.profile.current_location_lat = record.lat;
+        parsed.profile.current_location_lng = record.lng;
+        localStorage.setItem('foodbridge_current_session', JSON.stringify(parsed));
+      }
+    }
+  } catch (e) {
+    console.warn('Could not save location locally:', e);
+  }
+
+  // 2. Sync to Firestore collection
+  try {
+    const locRef = collection(db, 'live_locations');
+    await addDoc(locRef, {
+      ...locItem,
+      createdAt: serverTimestamp(),
+    });
+  } catch (e) {
+    // Firestore sync fallback
+  }
+
+  // 3. Dispatch window event for live in-app listeners
+  try {
+    window.dispatchEvent(
+      new CustomEvent('foodbridge_live_location_updated', {
+        detail: locItem,
+      })
+    );
+  } catch (e) {}
+}
+
+/**
+ * Listens to live locations of volunteers and donors in real time
+ */
+export function listenToLiveLocations(
+  onUpdate: (locations: LiveLocationRecord[]) => void
+): () => void {
+  // Read initial local cache
+  try {
+    const raw = localStorage.getItem('foodbridge_live_locations');
+    if (raw) {
+      onUpdate(JSON.parse(raw));
+    }
+  } catch (e) {}
+
+  // In-app window event listener
+  const handler = () => {
+    try {
+      const raw = localStorage.getItem('foodbridge_live_locations');
+      if (raw) onUpdate(JSON.parse(raw));
+    } catch (e) {}
+  };
+  window.addEventListener('foodbridge_live_location_updated', handler);
+
+  // Firestore real-time snapshot listener
+  try {
+    const locRef = collection(db, 'live_locations');
+    const q = query(locRef, orderBy('createdAt', 'desc'), limit(50));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const items: LiveLocationRecord[] = [];
+      snapshot.forEach((doc) => {
+        const d = doc.data();
+        if (d.lat != null && d.lng != null) {
+          items.push({
+            userId: d.userId || doc.id,
+            name: d.name || 'User',
+            role: d.role || 'volunteer',
+            organization: d.organization || '',
+            lat: d.lat,
+            lng: d.lng,
+            address: d.address || '',
+            status: d.status || 'active',
+            updatedAt: d.createdAt?.toDate ? d.createdAt.toDate().toISOString() : d.updatedAt || new Date().toISOString(),
+          });
+        }
+      });
+      if (items.length > 0) {
+        onUpdate(items);
+      }
+    });
+
+    return () => {
+      window.removeEventListener('foodbridge_live_location_updated', handler);
+      unsubscribe();
+    };
+  } catch (e) {
+    return () => {
+      window.removeEventListener('foodbridge_live_location_updated', handler);
+    };
+  }
+}

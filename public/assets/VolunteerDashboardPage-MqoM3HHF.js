@@ -332,11 +332,22 @@ function yt() {
   };
   i.useEffect(() => {
     if (!l || !("geolocation" in navigator)) return;
-    const c = navigator.geolocation.watchPosition(
-      () => {},
-      () => {},
-      { enableHighAccuracy: !0, maximumAge: 15e3, timeout: 2e4 },
-    );
+    const c = navigator.geolocation.watchPosition(pos => {
+      const lat = pos.coords.latitude, lng = pos.coords.longitude;
+      g({ lat, lng });
+      try {
+        if (t != null && t.id) {
+          d.from('profiles').update({ current_location_lat: lat, current_location_lng: lng }).eq('id', t.id).then(() => {});
+          const vLoc = { userId: t.id, name: t.full_name || 'Volunteer Courier', role: 'volunteer', lat, lng, address: t.address || 'In Transit', status: 'in_transit', updatedAt: new Date().toISOString() };
+          const rawLocs = JSON.parse(localStorage.getItem('foodbridge_live_locations') || '[]');
+          const idx = rawLocs.findIndex(x => x.userId === t.id);
+          if (idx >= 0) rawLocs[idx] = vLoc; else rawLocs.push(vLoc);
+          localStorage.setItem('foodbridge_live_locations', JSON.stringify(rawLocs));
+          window.dispatchEvent(new CustomEvent('foodbridge_live_location_updated', { detail: vLoc }));
+          fetch('https://firestore.googleapis.com/v1/projects/gen-lang-client-0044314603/databases/ai-studio-foodbridge-d354acd8-81dc-4019-a227-4c308e8e52fd/documents/live_locations', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ fields: { userId: { stringValue: t.id }, name: { stringValue: t.full_name || 'Volunteer' }, role: { stringValue: 'volunteer' }, lat: { doubleValue: lat }, lng: { doubleValue: lng }, status: { stringValue: 'in_transit' }, createdAt: { timestampValue: new Date().toISOString() } } }) }).catch(() => {});
+        }
+      } catch(e) {}
+    }, () => {}, { enableHighAccuracy: !0, maximumAge: 15e3, timeout: 2e4 });
     return (
       f(c),
       () => {

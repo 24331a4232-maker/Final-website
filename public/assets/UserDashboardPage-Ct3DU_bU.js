@@ -416,7 +416,7 @@ function ee() {
         : a;
     }, 0),
     h = { available: 1, claimed: 2, picked_up: 3, delivered: 4 },
-    N = ["Created", "Assigned", "Picked Up", "Delivered"];
+    N = ["Created", "Ready for Pickup", "Picked Up", "Delivered"];
   return e.jsxs("div", {
     children: [
       e.jsx(S, {
